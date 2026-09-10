@@ -26,21 +26,26 @@ export function Builds({ shadows }: { shadows: boolean }) {
       <PieceHealthBars />
       {engine.pieceList.map((p) => {
         const isEditing = engine.editMode && engine.editPiece?.id === p.id;
-        return p.colliders.map((c, i) => (
-          <PieceMesh
-            key={`${p.id}-${p.version}-${i}`}
-            geo={geo}
-            baseMat={mats[p.mat]}
-            blueprintMat={blueprintMat}
-            isEditing={isEditing}
-            c={c}
-            hp={p.hp}
-            maxHp={p.maxHp}
-            owner={p.owner}
-            matId={p.mat}
-            shadows={shadows}
-          />
-        ));
+        return (
+          <group key={`piece-${p.id}-${p.version}`}>
+            {p.colliders.map((c, i) => (
+              <PieceMesh
+                key={`${p.id}-${p.version}-${i}`}
+                geo={geo}
+                baseMat={mats[p.mat]}
+                blueprintMat={blueprintMat}
+                isEditing={isEditing}
+                c={c}
+                hp={p.hp}
+                maxHp={p.maxHp}
+                owner={p.owner}
+                matId={p.mat}
+                shadows={shadows}
+              />
+            ))}
+            <BuildPulse piece={p} />
+          </group>
+        );
       })}
     </group>
   );
@@ -107,6 +112,48 @@ function PieceMesh({
         Math.max(0.02, c.maxZ - c.minZ),
       ]}
     />
+  );
+}
+
+/** Short placement/edit confirmation ring, mounted for each new piece version. */
+function BuildPulse({ piece }: { piece: import("../../game/build").Piece }) {
+  const mesh = useRef<THREE.Mesh>(null);
+  const material = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: piece.owner === "player" ? "#63f6c2" : "#ff8b9e",
+        transparent: true,
+        opacity: 0.85,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    [piece.owner],
+  );
+  const started = useRef(performance.now());
+  const bounds = pieceBounds(piece);
+  const center = new THREE.Vector3(
+    (bounds.minX + bounds.maxX) / 2,
+    bounds.minY + 0.08,
+    (bounds.minZ + bounds.maxZ) / 2,
+  );
+
+  useEffect(() => () => material.dispose(), [material]);
+  useFrame(() => {
+    const m = mesh.current;
+    if (!m) return;
+    const progress = (performance.now() - started.current) / 420;
+    m.visible = progress < 1;
+    if (!m.visible) return;
+    const eased = 1 - Math.pow(1 - progress, 3);
+    m.position.copy(center);
+    m.scale.setScalar(0.65 + eased * 1.8);
+    material.opacity = 0.78 * (1 - progress);
+  });
+
+  return (
+    <mesh ref={mesh} material={material} rotation={[Math.PI / 2, 0, 0]}>
+      <torusGeometry args={[0.72, 0.035, 6, 32]} />
+    </mesh>
   );
 }
 
