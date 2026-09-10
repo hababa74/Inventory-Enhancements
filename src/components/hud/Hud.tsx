@@ -559,8 +559,10 @@ function AimTrainerPanel() {
 
 const BUILD_HOTKEYS: Record<string, string> = { wall: "Q", ramp: "V", floor: "C", roof: "F" };
 
-function TopTimer({ bestOf }: { bestOf: number }) {
+function TopTimer({ bestOf, gameMode }: { bestOf: number; gameMode: string }) {
   const roundTime = useHud((s) => s.roundTime);
+  const scoreYou = useHud((s) => s.scoreYou);
+  const scoreEnemy = useHud((s) => s.scoreEnemy);
   const mins = Math.floor(roundTime / 60);
   const secs = Math.floor(roundTime % 60);
   return (
@@ -570,6 +572,9 @@ function TopTimer({ bestOf }: { bestOf: number }) {
       </span>
       <span className="text-[10px] tracking-widest text-muted-foreground">
         FIRST TO {Math.ceil(bestOf / 2)}
+      </span>
+      <span className="text-[9px] font-semibold tracking-[0.2em] text-[color:var(--neon)]">
+        {gameMode.toUpperCase()} · R{scoreYou + scoreEnemy + 1}/{bestOf}
       </span>
     </div>
   );
@@ -643,7 +648,7 @@ export function Hud() {
           </span>
           <span className="font-display text-2xl font-bold tabular-nums">{scoreYou}</span>
         </div>
-        <TopTimer bestOf={bestOf} />
+        <TopTimer bestOf={bestOf} gameMode={gameMode} />
         <div className="panel clip-slant flex items-center gap-3 px-4 py-2">
           <span className="font-display text-2xl font-bold tabular-nums">{scoreEnemy}</span>
           <span className="text-xs font-semibold tracking-widest text-[color:var(--danger)]">
