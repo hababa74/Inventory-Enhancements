@@ -156,12 +156,16 @@ export function EditOverlay() {
     [],
   );
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     const g = group.current;
     if (!g) return;
     const p = engine.editPiece;
     g.visible = engine.editMode && !!p;
     if (!g.visible || !p) return;
+
+    const aimPulse = 0.72 + Math.sin(clock.elapsedTime * 10) * 0.18;
+    mats.aim.opacity = aimPulse;
+    lineMat.opacity = 0.72 + Math.sin(clock.elapsedTime * 5) * 0.12;
 
     const shapeInfo = getEditShapeInfo(p.type, engine.editSelection);
     const isValid = shapeInfo.valid;
