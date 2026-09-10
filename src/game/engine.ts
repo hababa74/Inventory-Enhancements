@@ -963,6 +963,7 @@ export class Engine {
       ];
       hudStore.set({
         lastHit: now,
+        lastHitStructure: false,
         lastHeadshot: head ? now : hudStore.get().lastHeadshot,
         lastHitArmor: armor,
         lastHitDist: dist,
@@ -1803,7 +1804,12 @@ export class Engine {
         this.damagePiece(hit.piece, w.buildDamage);
         this.spawnImpact(endX, endY, endZ);
         // A build hit gets the same immediate confirmation as an actor hit.
-        hudStore.set({ lastHit: performance.now(), lastHitArmor: false, lastHitDist: hit.dist });
+        hudStore.set({
+          lastHit: performance.now(),
+          lastHitStructure: true,
+          lastHitArmor: false,
+          lastHitDist: hit.dist,
+        });
         if (w.melee) {
           Sfx.pickaxeHit();
           if (isPlayer) this.farmMat(hit.piece.mat);

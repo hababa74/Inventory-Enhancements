@@ -6,14 +6,30 @@ import { WeaponIcon } from "./WeaponIcon";
 import { RankPopup } from "./RankPopup";
 import { getEditShapeInfo } from "../../game/build";
 
-function Bar({ value, max, color, label }: { value: number; max: number; color: string; label: string }) {
+function Bar({
+  value,
+  max,
+  color,
+  label,
+}: {
+  value: number;
+  max: number;
+  color: string;
+  label: string;
+}) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-10 text-[11px] font-semibold tracking-widest text-muted-foreground">{label}</span>
+      <span className="w-10 text-[11px] font-semibold tracking-widest text-muted-foreground">
+        {label}
+      </span>
       <div className="relative h-3 w-52 overflow-hidden rounded-sm border border-border/70 bg-black/50">
         <div
           className="h-full transition-[width] duration-150 ease-out"
-          style={{ width: `${Math.max(0, (value / max) * 100)}%`, background: color, boxShadow: `0 0 14px ${color}` }}
+          style={{
+            width: `${Math.max(0, (value / max) * 100)}%`,
+            background: color,
+            boxShadow: `0 0 14px ${color}`,
+          }}
         />
       </div>
       <span className="w-9 text-right text-sm font-bold tabular-nums">{Math.round(value)}</span>
@@ -28,6 +44,7 @@ function Crosshair() {
   const weapon = useHud((s) => s.weapon);
   const drinkProgress = useHud((s) => s.drinkProgress);
   const lastHit = useHud((s) => s.lastHit);
+  const lastHitStructure = useHud((s) => s.lastHitStructure);
   const lastHead = useHud((s) => s.lastHeadshot);
   const hitArmor = useHud((s) => s.lastHitArmor);
   const hitDist = useHud((s) => s.lastHitDist);
@@ -36,7 +53,13 @@ function Crosshair() {
   if (scoped && WEAPONS[weapon].scope !== undefined && !buildMode && !editMode) return null;
 
   const head = lastHead >= lastHit;
-  const hitColor = head ? "#ff4d6d" : hitArmor ? "#6ec6ff" : "#ffffff";
+  const hitColor = lastHitStructure
+    ? "#ffd166"
+    : head
+      ? "#ff4d6d"
+      : hitArmor
+        ? "#6ec6ff"
+        : "#ffffff";
 
   // Per-weapon crosshair configurations
   const isShotgun = weapon === "shotgun" || weapon === "tacshotgun";
@@ -69,7 +92,10 @@ function Crosshair() {
         {/* 1. Shotgun: Fortnite pump box brackets with center dot */}
         {isShotgun && !buildMode && !editMode ? (
           <div className="relative h-8 w-8">
-            <div className="absolute left-1/2 top-1/2 h-[3px] w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: color }} />
+            <div
+              className="absolute left-1/2 top-1/2 h-[3px] w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+              style={{ background: color }}
+            />
             {/* 4 corner brackets */}
             <div className="absolute left-0 top-0 h-2.5 w-[2px]" style={{ background: color }} />
             <div className="absolute left-0 top-0 h-[2px] w-2.5" style={{ background: color }} />
@@ -77,50 +103,77 @@ function Crosshair() {
             <div className="absolute right-0 top-0 h-[2px] w-2.5" style={{ background: color }} />
             <div className="absolute left-0 bottom-0 h-2.5 w-[2px]" style={{ background: color }} />
             <div className="absolute left-0 bottom-0 h-[2px] w-2.5" style={{ background: color }} />
-            <div className="absolute right-0 bottom-0 h-2.5 w-[2px]" style={{ background: color }} />
-            <div className="absolute right-0 bottom-0 h-[2px] w-2.5" style={{ background: color }} />
+            <div
+              className="absolute right-0 bottom-0 h-2.5 w-[2px]"
+              style={{ background: color }}
+            />
+            <div
+              className="absolute right-0 bottom-0 h-[2px] w-2.5"
+              style={{ background: color }}
+            />
           </div>
         ) : isBow && !buildMode && !editMode ? (
           /* 2. Bow & Crossbow: Archery circle reticle with center dot + chevron */
           <div className="relative h-10 w-10 flex items-center justify-center">
-            <div className="absolute h-8 w-8 rounded-full border border-dashed" style={{ borderColor: color, borderWidth: 1.5 }} />
+            <div
+              className="absolute h-8 w-8 rounded-full border border-dashed"
+              style={{ borderColor: color, borderWidth: 1.5 }}
+            />
             <div className="absolute h-[3px] w-[3px] rounded-full" style={{ background: color }} />
             <div className="absolute bottom-1 h-1.5 w-[1.5px]" style={{ background: color }} />
           </div>
         ) : isRocket && !buildMode && !editMode ? (
           /* 3. Rocket: Target circle with outer cross ticks */
           <div className="relative h-10 w-10 flex items-center justify-center">
-            <div className="absolute h-6 w-6 rounded-full border" style={{ borderColor: color, borderWidth: 1.5 }} />
+            <div
+              className="absolute h-6 w-6 rounded-full border"
+              style={{ borderColor: color, borderWidth: 1.5 }}
+            />
             {[0, 90, 180, 270].map((r) => (
               <div
                 key={r}
                 className="absolute left-1/2 top-1/2 h-2.5 w-[2px] origin-center"
-                style={{ background: color, transform: `translate(-50%,-50%) rotate(${r}deg) translateY(-14px)` }}
+                style={{
+                  background: color,
+                  transform: `translate(-50%,-50%) rotate(${r}deg) translateY(-14px)`,
+                }}
               />
             ))}
           </div>
         ) : isMinigun && !buildMode && !editMode ? (
           /* 4. Minigun: Wide heavy circle with thick notches */
           <div className="relative h-12 w-12 flex items-center justify-center">
-            <div className="absolute h-9 w-9 rounded-full border" style={{ borderColor: color, opacity: 0.6 }} />
+            <div
+              className="absolute h-9 w-9 rounded-full border"
+              style={{ borderColor: color, opacity: 0.6 }}
+            />
             <div className="absolute h-[3px] w-[3px] rounded-full" style={{ background: color }} />
             {[0, 90, 180, 270].map((r) => (
               <div
                 key={r}
                 className="absolute left-1/2 top-1/2 h-3 w-[2.5px] origin-center"
-                style={{ background: color, transform: `translate(-50%,-50%) rotate(${r}deg) translateY(-15px)` }}
+                style={{
+                  background: color,
+                  transform: `translate(-50%,-50%) rotate(${r}deg) translateY(-15px)`,
+                }}
               />
             ))}
           </div>
         ) : isSniper && !buildMode && !editMode ? (
           /* 5. Snipers (Hipfire): Fine needle crosshair + precision dot */
           <div className="relative h-6 w-6 flex items-center justify-center">
-            <div className="absolute h-[2.5px] w-[2.5px] rounded-full" style={{ background: "#ff4d6d" }} />
+            <div
+              className="absolute h-[2.5px] w-[2.5px] rounded-full"
+              style={{ background: "#ff4d6d" }}
+            />
             {[0, 90, 180, 270].map((r) => (
               <div
                 key={r}
                 className="absolute left-1/2 top-1/2 h-2 w-[1px] origin-center"
-                style={{ background: color, transform: `translate(-50%,-50%) rotate(${r}deg) translateY(-8px)` }}
+                style={{
+                  background: color,
+                  transform: `translate(-50%,-50%) rotate(${r}deg) translateY(-8px)`,
+                }}
               />
             ))}
           </div>
@@ -136,12 +189,18 @@ function Crosshair() {
         ) : (
           /* 8. Default & Assault Rifles / Pistols / SMGs / Build / Edit mode */
           <div className="relative h-8 w-8">
-            <div className="absolute left-1/2 top-1/2 h-[3px] w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ background: color }} />
+            <div
+              className="absolute left-1/2 top-1/2 h-[3px] w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+              style={{ background: color }}
+            />
             {[0, 90, 180, 270].map((r) => (
               <div
                 key={r}
                 className="absolute left-1/2 top-1/2 h-[9px] w-[2px] origin-center"
-                style={{ background: color, transform: `translate(-50%,-50%) rotate(${r}deg) translateY(-9px)` }}
+                style={{
+                  background: color,
+                  transform: `translate(-50%,-50%) rotate(${r}deg) translateY(-9px)`,
+                }}
               />
             ))}
           </div>
@@ -178,6 +237,15 @@ function Crosshair() {
             />
           ))}
         </div>
+        {lastHitStructure && (
+          <div
+            key={`build-hit-${lastHit}`}
+            className="absolute left-1/2 top-8 -translate-x-1/2 whitespace-nowrap text-[10px] font-black tracking-[0.22em] text-[#ffd166] drop-shadow-[0_2px_5px_rgba(0,0,0,0.9)]"
+            style={{ animation: "rise-fade 0.55s ease-out forwards" }}
+          >
+            BUILD HIT
+          </div>
+        )}
       </div>
     </div>
   );
@@ -202,7 +270,9 @@ function DamageNumbers() {
           {d.amount}
           {d.head ? "!" : ""}
           {d.dist > 45 && (
-            <span className="ml-1 align-super text-[10px] font-semibold opacity-80">{Math.round(d.dist)}m</span>
+            <span className="ml-1 align-super text-[10px] font-semibold opacity-80">
+              {Math.round(d.dist)}m
+            </span>
           )}
         </span>
       ))}
@@ -231,7 +301,9 @@ function EditGrid() {
           borderColor: isValid ? "#38bdf8" : "#ef4444",
           background: isValid ? "rgba(2, 132, 199, 0.45)" : "rgba(239, 68, 68, 0.45)",
           color: isValid ? "#e0f2fe" : "#fee2e2",
-          boxShadow: isValid ? "0 0 20px rgba(56, 189, 248, 0.4)" : "0 0 20px rgba(239, 68, 68, 0.5)",
+          boxShadow: isValid
+            ? "0 0 20px rgba(56, 189, 248, 0.4)"
+            : "0 0 20px rgba(239, 68, 68, 0.5)",
           animation: isValid ? undefined : "pulse 1s infinite",
         }}
       >
@@ -276,9 +348,7 @@ function EditGrid() {
               className={`relative flex items-center justify-center rounded border transition-all duration-75 ${bg}`}
               style={{ boxShadow: shadow }}
             >
-              {isAim && (
-                <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping" />
-              )}
+              {isAim && <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping" />}
             </div>
           );
         })}
@@ -287,22 +357,27 @@ function EditGrid() {
       {/* Control Hints / Action Badges */}
       <div className="flex items-center gap-4 text-[11px] font-semibold tracking-wide text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
         <div className="flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1 border border-white/20">
-          <span className="rounded bg-sky-500 px-1.5 py-0.5 text-[10px] font-bold text-white">LMB</span>
+          <span className="rounded bg-sky-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+            LMB
+          </span>
           <span>Ziehen = Kacheln</span>
         </div>
         <div className="flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1 border border-white/20">
-          <span className="rounded bg-sky-500 px-1.5 py-0.5 text-[10px] font-bold text-white">Loslassen</span>
+          <span className="rounded bg-sky-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+            Loslassen
+          </span>
           <span>= Bestätigen</span>
         </div>
         <div className="flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1 border border-white/20">
-          <span className="rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">Mausrad / T</span>
+          <span className="rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+            Mausrad / T
+          </span>
           <span>= Reset</span>
         </div>
       </div>
     </div>
   );
 }
-
 
 /** Fortnite-style sniper scope: weapon-specific optics for Sniper, Heavy Sniper, Crossbow. */
 function ScopeOverlay() {
@@ -363,8 +438,12 @@ function ScopeOverlay() {
       )}
 
       {/* cross hairlines across the lens */}
-      <div className={`absolute left-1/2 top-0 h-full w-px -translate-x-1/2 ${isHeavy ? "bg-[#22c55e]/70" : "bg-black/70"}`} />
-      <div className={`absolute left-0 top-1/2 h-px w-full -translate-y-1/2 ${isHeavy ? "bg-[#22c55e]/70" : "bg-black/70"}`} />
+      <div
+        className={`absolute left-1/2 top-0 h-full w-px -translate-x-1/2 ${isHeavy ? "bg-[#22c55e]/70" : "bg-black/70"}`}
+      />
+      <div
+        className={`absolute left-0 top-1/2 h-px w-full -translate-y-1/2 ${isHeavy ? "bg-[#22c55e]/70" : "bg-black/70"}`}
+      />
 
       {/* Center Reticle */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -372,7 +451,11 @@ function ScopeOverlay() {
           {/* Center aiming dot */}
           <div
             className={`absolute left-1/2 top-1/2 h-[3px] w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full ${
-              isHeavy ? "bg-[#4ade80] shadow-[0_0_8px_#4ade80]" : isCrossbow ? "bg-[#f59e0b]" : "bg-[#ff4d6d]"
+              isHeavy
+                ? "bg-[#4ade80] shadow-[0_0_8px_#4ade80]"
+                : isCrossbow
+                  ? "bg-[#f59e0b]"
+                  : "bg-[#ff4d6d]"
             }`}
           />
 
@@ -386,46 +469,46 @@ function ScopeOverlay() {
           ))}
 
           {/* Heavy Sniper Mil-Dots or Standard Range Hashes */}
-          {isHeavy ? (
-            [-4, -3, -2, -1, 1, 2, 3, 4].map((n) => (
-              <div
-                key={n}
-                className="absolute left-1/2 -translate-x-1/2 rounded-full bg-[#4ade80]"
-                style={{ top: `calc(50% + ${n * 10}px)`, width: 3, height: 3 }}
-              />
-            ))
-          ) : isCrossbow ? (
-            /* Crossbow ballistic drop chevrons */
-            [1, 2, 3].map((n) => (
-              <div
-                key={n}
-                className="absolute left-1/2 -translate-x-1/2 border-b-2 border-r-2 border-[#f59e0b]"
-                style={{
-                  top: `calc(50% + ${n * 14}px)`,
-                  width: 8 + n * 4,
-                  height: 8 + n * 4,
-                  transform: "translateX(-50%) rotate(45deg)",
-                  opacity: 0.85,
-                }}
-              />
-            ))
-          ) : (
-            /* Standard Sniper Hash Marks */
-            [-3, -2, -1, 1, 2, 3].map((n) => (
-              <div
-                key={n}
-                className="absolute left-1/2 h-px bg-black/70"
-                style={{ top: `calc(50% + ${n * 9}px)`, width: Math.abs(n) % 2 ? 10 : 16, transform: "translateX(-50%)" }}
-              />
-            ))
-          )}
+          {isHeavy
+            ? [-4, -3, -2, -1, 1, 2, 3, 4].map((n) => (
+                <div
+                  key={n}
+                  className="absolute left-1/2 -translate-x-1/2 rounded-full bg-[#4ade80]"
+                  style={{ top: `calc(50% + ${n * 10}px)`, width: 3, height: 3 }}
+                />
+              ))
+            : isCrossbow
+              ? /* Crossbow ballistic drop chevrons */
+                [1, 2, 3].map((n) => (
+                  <div
+                    key={n}
+                    className="absolute left-1/2 -translate-x-1/2 border-b-2 border-r-2 border-[#f59e0b]"
+                    style={{
+                      top: `calc(50% + ${n * 14}px)`,
+                      width: 8 + n * 4,
+                      height: 8 + n * 4,
+                      transform: "translateX(-50%) rotate(45deg)",
+                      opacity: 0.85,
+                    }}
+                  />
+                ))
+              : /* Standard Sniper Hash Marks */
+                [-3, -2, -1, 1, 2, 3].map((n) => (
+                  <div
+                    key={n}
+                    className="absolute left-1/2 h-px bg-black/70"
+                    style={{
+                      top: `calc(50% + ${n * 9}px)`,
+                      width: Math.abs(n) % 2 ? 10 : 16,
+                      transform: "translateX(-50%)",
+                    }}
+                  />
+                ))}
         </div>
       </div>
     </div>
   );
 }
-
-
 
 /** Target-dummy aim training: hit counter, round timer, best score. */
 function AimTrainerPanel() {
@@ -438,9 +521,16 @@ function AimTrainerPanel() {
       <div className="text-[10px] tracking-[0.3em] text-muted-foreground">ZIELPUPPEN-MODUS</div>
       {at.active ? (
         <>
-          <div className="mt-1 font-display text-4xl font-bold tabular-nums neon-text">{at.hits}</div>
-          <div className="text-[11px] tracking-widest text-muted-foreground">TREFFER · {acc}% GENAU</div>
-          <div className="mt-1 font-display text-2xl font-bold tabular-nums" style={{ color: secs <= 10 ? "var(--danger)" : undefined }}>
+          <div className="mt-1 font-display text-4xl font-bold tabular-nums neon-text">
+            {at.hits}
+          </div>
+          <div className="text-[11px] tracking-widest text-muted-foreground">
+            TREFFER · {acc}% GENAU
+          </div>
+          <div
+            className="mt-1 font-display text-2xl font-bold tabular-nums"
+            style={{ color: secs <= 10 ? "var(--danger)" : undefined }}
+          >
             {secs}s
           </div>
         </>
@@ -451,7 +541,9 @@ function AimTrainerPanel() {
               LETZTE RUNDE: {at.lastHits} TREFFER
             </div>
           )}
-          <div className="mt-0.5 text-[11px] tracking-widest text-muted-foreground">BESTWERT: {at.best}</div>
+          <div className="mt-0.5 text-[11px] tracking-widest text-muted-foreground">
+            BESTWERT: {at.best}
+          </div>
         </>
       )}
       <button
@@ -476,7 +568,9 @@ function TopTimer({ bestOf }: { bestOf: number }) {
       <span className="font-display text-lg font-bold tabular-nums">
         {mins}:{secs.toString().padStart(2, "0")}
       </span>
-      <span className="text-[10px] tracking-widest text-muted-foreground">FIRST TO {Math.ceil(bestOf / 2)}</span>
+      <span className="text-[10px] tracking-widest text-muted-foreground">
+        FIRST TO {Math.ceil(bestOf / 2)}
+      </span>
     </div>
   );
 }
@@ -485,14 +579,18 @@ function StaminaBar() {
   const stamina = useHud((s) => s.stamina);
   return (
     <div className="flex items-center gap-2">
-      <span className="w-10 text-[11px] font-semibold tracking-widest text-muted-foreground">STAM</span>
+      <span className="w-10 text-[11px] font-semibold tracking-widest text-muted-foreground">
+        STAM
+      </span>
       <div className="h-1.5 w-52 overflow-hidden rounded-sm bg-black/50">
         <div
           className="h-full transition-[width] duration-100"
           style={{ width: `${stamina}%`, background: "#ffd166" }}
         />
       </div>
-      <span className="w-8 text-right text-[11px] tabular-nums text-muted-foreground">{Math.round(stamina)}</span>
+      <span className="w-8 text-right text-[11px] tabular-nums text-muted-foreground">
+        {Math.round(stamina)}
+      </span>
     </div>
   );
 }
@@ -540,18 +638,24 @@ export function Hud() {
       {/* top: scores + timer */}
       <div className="absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-4">
         <div className="panel clip-slant flex items-center gap-3 px-4 py-2">
-          <span className="text-xs font-semibold tracking-widest text-[color:var(--neon-2)]">YOU</span>
+          <span className="text-xs font-semibold tracking-widest text-[color:var(--neon-2)]">
+            YOU
+          </span>
           <span className="font-display text-2xl font-bold tabular-nums">{scoreYou}</span>
         </div>
         <TopTimer bestOf={bestOf} />
         <div className="panel clip-slant flex items-center gap-3 px-4 py-2">
           <span className="font-display text-2xl font-bold tabular-nums">{scoreEnemy}</span>
-          <span className="text-xs font-semibold tracking-widest text-[color:var(--danger)]">{opponent}</span>
+          <span className="text-xs font-semibold tracking-widest text-[color:var(--danger)]">
+            {opponent}
+          </span>
         </div>
       </div>
 
       {/* enemy health */}
-      <div className={`absolute left-1/2 top-24 w-64 -translate-x-1/2 ${botCount === 0 ? "hidden" : ""}`}>
+      <div
+        className={`absolute left-1/2 top-24 w-64 -translate-x-1/2 ${botCount === 0 ? "hidden" : ""}`}
+      >
         <div className="mb-1 text-center text-[10px] tracking-[0.3em] text-muted-foreground">
           {botCount > 1 ? `GEGNER · ${botsAlive}/${botCount} AKTIV` : "OPPONENT"}
         </div>
@@ -574,7 +678,10 @@ export function Hud() {
       {/* countdown */}
       {countdown >= 0 && (
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <div className="font-display text-8xl font-bold neon-text" style={{ animation: "pulse-ring 0.9s ease-out" }}>
+          <div
+            className="font-display text-8xl font-bold neon-text"
+            style={{ animation: "pulse-ring 0.9s ease-out" }}
+          >
             {countdown === 0 ? "GO" : countdown}
           </div>
         </div>
@@ -597,7 +704,10 @@ export function Hud() {
           style={{ display: gameMode === "zonewars" ? "block" : "none" }}
         >
           {inStorm && (
-            <div className="font-display text-sm font-bold tracking-widest" style={{ color: "#a855f7", textShadow: "0 0 10px #a855f7" }}>
+            <div
+              className="font-display text-sm font-bold tracking-widest"
+              style={{ color: "#a855f7", textShadow: "0 0 10px #a855f7" }}
+            >
               ⚠️ STORM – KEHRE ZURÜCK!
             </div>
           )}
@@ -615,7 +725,9 @@ export function Hud() {
       <div className="panel clip-slant absolute bottom-5 right-5 hidden px-4 py-3 text-right [@media(pointer:fine)]:block">
         {buildMode || editMode ? (
           <>
-            <div className="font-display text-xl font-bold neon-text">{editMode ? "EDIT MODE" : "BUILD MODE"}</div>
+            <div className="font-display text-xl font-bold neon-text">
+              {editMode ? "EDIT MODE" : "BUILD MODE"}
+            </div>
             <div className="mt-2 flex justify-end gap-1.5">
               {BUILD_ORDER.map((b, i) => (
                 <div
@@ -631,7 +743,9 @@ export function Hud() {
               ))}
             </div>
             <div className="mt-2 text-[11px] text-muted-foreground">
-              {editMode ? "LMB Kacheln • Loslassen bestätigt • T zurücksetzen • RMB abbrechen" : "LMB halten = Turbo-Bauen • R drehen • RMB zur Waffe"}
+              {editMode
+                ? "LMB Kacheln • Loslassen bestätigt • T zurücksetzen • RMB abbrechen"
+                : "LMB halten = Turbo-Bauen • R drehen • RMB zur Waffe"}
             </div>
           </>
         ) : (
@@ -641,9 +755,13 @@ export function Hud() {
             </div>
             <div className="font-display text-4xl font-bold tabular-nums">
               {spec.melee ? "∞" : ammo}
-              {!spec.melee && <span className="ml-2 text-lg text-muted-foreground">/ {reserve}</span>}
+              {!spec.melee && (
+                <span className="ml-2 text-lg text-muted-foreground">/ {reserve}</span>
+              )}
             </div>
-            {reloading && <div className="text-xs tracking-widest text-[color:var(--neon)]">RELOADING…</div>}
+            {reloading && (
+              <div className="text-xs tracking-widest text-[color:var(--neon)]">RELOADING…</div>
+            )}
             <div className="mt-2 flex justify-end gap-[3px]">
               {loadout.map((id, i) => {
                 const w = WEAPONS[id];
@@ -662,7 +780,10 @@ export function Hud() {
                         opacity: active ? 1 : 0.82,
                       }}
                     >
-                      <WeaponIcon id={id} className="h-11 w-[58px] drop-shadow-[0_2px_3px_rgba(0,0,0,0.5)]" />
+                      <WeaponIcon
+                        id={id}
+                        className="h-11 w-[58px] drop-shadow-[0_2px_3px_rgba(0,0,0,0.5)]"
+                      />
                       <span className="absolute bottom-0.5 right-1 flex items-center gap-0.5 text-[11px] font-bold leading-none text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                         {w.melee ? "∞" : active ? ammo : w.mag}
                         {!w.melee && (
@@ -685,7 +806,6 @@ export function Hud() {
                 );
               })}
             </div>
-
           </>
         )}
       </div>
@@ -694,9 +814,19 @@ export function Hud() {
       <div className="absolute right-5 top-5 space-y-1 text-right">
         {killFeed.map((k) => (
           <div key={k.id} className="panel inline-block px-3 py-1 text-xs">
-            <span className={k.killer === "YOU" ? "text-[color:var(--neon-2)]" : "text-[color:var(--danger)]"}>{k.killer}</span>
-            <span className="mx-2 text-muted-foreground">{k.headshot ? "⌖" : "»"} {k.weapon} »</span>
-            <span className={k.victim === "YOU" ? "text-[color:var(--danger)]" : "text-foreground"}>{k.victim}</span>
+            <span
+              className={
+                k.killer === "YOU" ? "text-[color:var(--neon-2)]" : "text-[color:var(--danger)]"
+              }
+            >
+              {k.killer}
+            </span>
+            <span className="mx-2 text-muted-foreground">
+              {k.headshot ? "⌖" : "»"} {k.weapon} »
+            </span>
+            <span className={k.victim === "YOU" ? "text-[color:var(--danger)]" : "text-foreground"}>
+              {k.victim}
+            </span>
           </div>
         ))}
       </div>
@@ -705,7 +835,8 @@ export function Hud() {
 
       {/* controls hint */}
       <div className="absolute bottom-5 left-1/2 hidden [@media(pointer:fine)]:block -translate-x-1/2 text-center text-[11px] tracking-wider text-muted-foreground/70">
-        WASD bewegen • SPACE springen • SHIFT sprinten • STRG ducken • Q Wand • V Treppe • C Boden • F Dach • Z Material • G editieren • H Zielpuppen-Training • R nachladen • ESC Pause
+        WASD bewegen • SPACE springen • SHIFT sprinten • STRG ducken • Q Wand • V Treppe • C Boden •
+        F Dach • Z Material • G editieren • H Zielpuppen-Training • R nachladen • ESC Pause
       </div>
     </div>
   );
@@ -729,7 +860,10 @@ function Materials() {
             className={`flex items-center gap-2 rounded-sm border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest backdrop-blur-[2px] ${
               active ? "bg-black/60" : "bg-black/30 opacity-70"
             }`}
-            style={{ borderColor: active ? MATS[m].color : "rgba(255,255,255,0.22)", color: MATS[m].color }}
+            style={{
+              borderColor: active ? MATS[m].color : "rgba(255,255,255,0.22)",
+              color: MATS[m].color,
+            }}
           >
             <span
               className="inline-block h-3 w-3 rounded-[2px]"

@@ -15,11 +15,21 @@ export interface KillFeedEntry {
 export interface ReplayFrame {
   t: number;
   // Player (local)
-  px: number; py: number; pz: number; pyaw: number; ppitch: number;
-  pHp: number; pShield: number; pAlive: boolean;
+  px: number;
+  py: number;
+  pz: number;
+  pyaw: number;
+  ppitch: number;
+  pHp: number;
+  pShield: number;
+  pAlive: boolean;
   // Opponent (bot/remote)
-  bx: number; by: number; bz: number; byaw: number;
-  bHp: number; bShield: number;
+  bx: number;
+  by: number;
+  bz: number;
+  byaw: number;
+  bHp: number;
+  bShield: number;
   weapon: string;
 }
 
@@ -68,6 +78,7 @@ export interface HudState {
   roundTime: number;
   killFeed: KillFeedEntry[];
   lastHit: number;
+  lastHitStructure: boolean;
   lastHeadshot: number;
   /** last hit was absorbed by shield */
   lastHitArmor: boolean;
@@ -83,8 +94,21 @@ export interface HudState {
   opponentName: string;
   opponentSkin: string;
   ping: number;
-  damageNumbers: Array<{ id: number; amount: number; head: boolean; armor: boolean; dist: number; t: number }>;
-  rankPopup: { mmrBefore: number; mmrAfter: number; rankBefore: string; rankAfter: string; rankUp: boolean } | null;
+  damageNumbers: Array<{
+    id: number;
+    amount: number;
+    head: boolean;
+    armor: boolean;
+    dist: number;
+    t: number;
+  }>;
+  rankPopup: {
+    mmrBefore: number;
+    mmrAfter: number;
+    rankBefore: string;
+    rankAfter: string;
+    rankUp: boolean;
+  } | null;
   gameMode: import("./constants").GameMode;
   stormRadius: number;
   stormActive: boolean;
@@ -142,6 +166,7 @@ export const initialHud: HudState = {
   roundTime: 0,
   killFeed: [],
   lastHit: 0,
+  lastHitStructure: false,
   lastHeadshot: 0,
   lastHitArmor: false,
   lastHitDist: 0,
@@ -450,7 +475,6 @@ export const defaultSettings: Settings = {
   gameMode: "duel",
   unlimitedMats: false,
 };
-
 
 const KEY = "arena-one-settings";
 
