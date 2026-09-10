@@ -682,12 +682,37 @@ export function Hud() {
 
       {/* countdown */}
       {countdown >= 0 && (
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 text-center">
+          <div className="mb-3 text-[11px] font-black tracking-[0.45em] text-white/70">
+            ROUND {scoreYou + scoreEnemy + 1} · READY
+          </div>
           <div
-            className="font-display text-8xl font-bold neon-text"
+            className="rounded-2xl border border-cyan-300/50 bg-slate-950/65 px-10 py-5 shadow-[0_0_50px_rgba(34,211,238,0.22)] backdrop-blur-md"
             style={{ animation: "pulse-ring 0.9s ease-out" }}
           >
-            {countdown === 0 ? "GO" : countdown}
+            <div
+              className="font-display text-8xl font-black leading-none"
+              style={{
+                color: countdown === 0 ? "#48ff9e" : "#e9f6ff",
+                textShadow:
+                  countdown === 0
+                    ? "0 0 35px rgba(72,255,158,0.9)"
+                    : "0 0 28px rgba(126,224,255,0.7)",
+              }}
+            >
+              {countdown === 0 ? "FIGHT" : countdown}
+            </div>
+            <div className="mt-3 h-1.5 w-48 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-300 transition-[width] duration-300"
+                style={{
+                  width: `${countdown === 0 ? 100 : Math.max(15, ((4 - countdown) / 4) * 100)}%`,
+                }}
+              />
+            </div>
+            <div className="mt-2 text-[10px] font-bold tracking-[0.3em] text-white/55">
+              {countdown === 0 ? "BUILD · AIM · WIN" : "SPAWN LOCKED"}
+            </div>
           </div>
         </div>
       )}
