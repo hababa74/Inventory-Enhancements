@@ -246,23 +246,60 @@ export function EditOverlay() {
 export function BuildGhost() {
   const group = useRef<THREE.Group>(null);
   const meshes = useRef<THREE.Mesh[]>([]);
-
-  const { geo, matOk, matBad } = useMemo(() => {
+  const { geo, mats, matOk, matBad } = useMemo(() => {
+    const build = makeBuildMaterials();
     const geo = new THREE.BoxGeometry(1, 1, 1);
-    const matOk = new THREE.MeshBasicMaterial({
-      color: "#48ff9e",
-      transparent: true,
-      opacity: 0.35,
-      depthWrite: false,
-    });
-    const matBad = new THREE.MeshBasicMaterial({
-      color: "#ff4d6d",
-      transparent: true,
-      opacity: 0.3,
-      depthWrite: false,
-    });
-    return { geo, matOk, matBad };
+    const makeGhost = (source: THREE.MeshStandardMaterial, color: string) =>
+      new THREE.MeshBasicMaterial({
+        map: source.map,
+        color,
+        transparent: true,
+        opacity: 0.42,
+        depthWrite: false,
+        depthTest: false,
+        side: THREE.DoubleSide,
+      });
+    const matOk = makeGhost(build.mats.wood, "#a7f7d1");
+    const matBad = makeGhost(build.mats.wood, "#ff6b7d");
+    return {
+      geo,
+      mats: build.mats,
+      matOk,
+      matBad,
+    };
   }, []);
+  const ghostMaterials = useMemo(
+    () =>
+      ({
+        wood: matOk,
+        stone: new THREE.MeshBasicMaterial({
+          map: mats.stone.map,
+          color: "#b9c7d5",
+          transparent: true,
+          opacity: 0.42,
+          depthWrite: false,
+          depthTest: false,
+          side: THREE.DoubleSide,
+        }),
+        metal: new THREE.MeshBasicMaterial({
+          map: mats.metal.map,
+          color: "#bfeaff",
+          transparent: true,
+          opacity: 0.42,
+          depthWrite: false,
+          depthTest: false,
+          side: THREE.DoubleSide,
+        }),
+      }) as Record<MatId, THREE.MeshBasicMaterial>,
+    [mats, matOk],
+  );
+  useEffect(() => {
+    return () => {
+      Object.values(ghostMaterials).forEach((material) => {
+        if (material !== matOk) material.dispose();
+      });
+    };
+  }, [ghostMaterials, matOk]);
 
   useFrame(() => {
     const g = group.current;
@@ -270,8 +307,16 @@ export function BuildGhost() {
     const ghost = engine.ghost;
     g.visible = ghost.visible;
     if (!ghost.visible) return;
-    const probe = createPiece(ghost.type, ghost.gx, ghost.gy, ghost.gz, ghost.rot, "player");
-    const mat = ghost.valid ? matOk : matBad;
+    const probe = createPiece(
+      ghost.type,
+      ghost.gx,
+      ghost.gy,
+      ghost.gz,
+      ghost.rot,
+      "player",
+      engine.material,
+    );
+    const mat = ghost.valid ? ghostMaterials[engine.material] : matBad;
     meshes.current.forEach((m, i) => {
       const c = probe.colliders[i];
       if (!c) {
@@ -288,7 +333,6 @@ export function BuildGhost() {
       );
     });
   });
-
   return (
     <group ref={group}>
       {Array.from({ length: 12 }).map((_, i) => (
