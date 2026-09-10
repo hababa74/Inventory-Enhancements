@@ -51,15 +51,26 @@ interface PieceMeshProps {
   baseMat: THREE.MeshStandardMaterial;
   blueprintMat: THREE.MeshBasicMaterial;
   isEditing: boolean;
-  c: import('../../game/math').AABB;
+  c: import("../../game/math").AABB;
   hp: number;
   maxHp: number;
   owner: string;
-  matId: import('../../game/constants').MatId;
+  matId: import("../../game/constants").MatId;
   shadows: boolean;
 }
 
-function PieceMesh({ geo, baseMat, blueprintMat, isEditing, c, hp, maxHp, owner, matId, shadows }: PieceMeshProps) {
+function PieceMesh({
+  geo,
+  baseMat,
+  blueprintMat,
+  isEditing,
+  c,
+  hp,
+  maxHp,
+  owner,
+  matId,
+  shadows,
+}: PieceMeshProps) {
   const matRef = useRef<THREE.MeshStandardMaterial>(null!);
 
   // Clone the material once on mount and keep reusing it — never clone again per frame.
@@ -125,9 +136,9 @@ export function EditOverlay() {
       quad,
       edges,
       mats: {
-        idle: make("#0077ff", 0.65),    // Vibrant Fortnite blue
-        aim: make("#38e1ff", 0.90),     // Bright glowing cyan
-        cut: make("#0f172a", 0.22),     // Cut-out hole
+        idle: make("#0077ff", 0.65), // Vibrant Fortnite blue
+        aim: make("#38e1ff", 0.9), // Bright glowing cyan
+        cut: make("#0f172a", 0.22), // Cut-out hole
         invalid: make("#ef4444", 0.85), // Warning red
       },
     };
@@ -238,8 +249,18 @@ export function BuildGhost() {
 
   const { geo, matOk, matBad } = useMemo(() => {
     const geo = new THREE.BoxGeometry(1, 1, 1);
-    const matOk = new THREE.MeshBasicMaterial({ color: "#48ff9e", transparent: true, opacity: 0.35, depthWrite: false });
-    const matBad = new THREE.MeshBasicMaterial({ color: "#ff4d6d", transparent: true, opacity: 0.3, depthWrite: false });
+    const matOk = new THREE.MeshBasicMaterial({
+      color: "#48ff9e",
+      transparent: true,
+      opacity: 0.35,
+      depthWrite: false,
+    });
+    const matBad = new THREE.MeshBasicMaterial({
+      color: "#ff4d6d",
+      transparent: true,
+      opacity: 0.3,
+      depthWrite: false,
+    });
     return { geo, matOk, matBad };
   }, []);
 
@@ -289,7 +310,13 @@ export function BuildGhost() {
 function PieceHealthBars() {
   const group = useRef<THREE.Group>(null);
   const bg = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: "#08111a", transparent: true, opacity: 0.75, depthWrite: false }),
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: "#08111a",
+        transparent: true,
+        opacity: 0.75,
+        depthWrite: false,
+      }),
     [],
   );
 
@@ -346,7 +373,7 @@ function makeBuildMaterials() {
   };
   const rnd = (seed: number) => {
     let x = seed;
-    return () => ((x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    return () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
   };
 
   const wood = tex((c, s) => {
@@ -362,7 +389,7 @@ function makeBuildMaterials() {
     for (let row = 0; row < 8; row++) {
       const y = 18 + row * 31 + (r() - 0.5) * 6;
       const sway = (r() - 0.5) * 10;
-      c.strokeStyle = `rgb(${112 + (r() * 45) | 0},${74 + (r() * 34) | 0},${38 + (r() * 20) | 0})`;
+      c.strokeStyle = `rgb(${(112 + r() * 45) | 0},${(74 + r() * 34) | 0},${(38 + r() * 20) | 0})`;
       c.lineWidth = 10 + r() * 5;
       c.beginPath();
       c.moveTo(12, y);
@@ -393,7 +420,13 @@ function makeBuildMaterials() {
       c.lineWidth = 13;
     }
     // rope bindings at alternating joints
-    for (const [x, y] of [[14, 26], [s - 14, 86], [s * 0.52, 116], [14, 202], [s - 14, 226]]) {
+    for (const [x, y] of [
+      [14, 26],
+      [s - 14, 86],
+      [s * 0.52, 116],
+      [14, 202],
+      [s - 14, 226],
+    ]) {
       c.strokeStyle = "#d4a86e";
       c.lineWidth = 4;
       for (let band = -1; band <= 1; band++) {
@@ -480,9 +513,24 @@ function makeBuildMaterials() {
   });
 
   const mats: Record<MatId, THREE.MeshStandardMaterial> = {
-    wood: new THREE.MeshStandardMaterial({ map: wood, color: "#d9b184", roughness: 0.82, metalness: 0.02 }),
-    stone: new THREE.MeshStandardMaterial({ map: stone, color: "#c8ced4", roughness: 0.92, metalness: 0.04 }),
-    metal: new THREE.MeshStandardMaterial({ map: metal, color: "#cfe2ee", roughness: 0.38, metalness: 0.72 }),
+    wood: new THREE.MeshStandardMaterial({
+      map: wood,
+      color: "#d9b184",
+      roughness: 0.82,
+      metalness: 0.02,
+    }),
+    stone: new THREE.MeshStandardMaterial({
+      map: stone,
+      color: "#c8ced4",
+      roughness: 0.92,
+      metalness: 0.04,
+    }),
+    metal: new THREE.MeshStandardMaterial({
+      map: metal,
+      color: "#cfe2ee",
+      roughness: 0.38,
+      metalness: 0.72,
+    }),
   };
   return { geo, mats };
 }
