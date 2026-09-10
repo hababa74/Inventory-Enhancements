@@ -1802,6 +1802,8 @@ export class Engine {
       } else if (hit.hit === "piece" && hit.piece) {
         this.damagePiece(hit.piece, w.buildDamage);
         this.spawnImpact(endX, endY, endZ);
+        // A build hit gets the same immediate confirmation as an actor hit.
+        hudStore.set({ lastHit: performance.now(), lastHitArmor: false, lastHitDist: hit.dist });
         if (w.melee) {
           Sfx.pickaxeHit();
           if (isPlayer) this.farmMat(hit.piece.mat);
