@@ -11,7 +11,11 @@ if (!process.env.LOVABLE_PREVIEW_HOST) {
 }
 
 export default defineConfig({
-  tanstackStart: {
+	// The sandbox preview is reached through a generated public hostname.
+	vite: {
+		server: { allowedHosts: true },
+	},
+	tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
