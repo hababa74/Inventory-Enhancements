@@ -118,16 +118,24 @@ function PieceMesh({
 /** Short placement/edit confirmation ring, mounted for each new piece version. */
 function BuildPulse({ piece }: { piece: import("../../game/build").Piece }) {
   const mesh = useRef<THREE.Mesh>(null);
+  const damaged = piece.hp < piece.maxHp;
+  const damageRatio = 1 - piece.hp / Math.max(1, piece.maxHp);
   const material = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
-        color: piece.owner === "player" ? "#63f6c2" : "#ff8b9e",
+        color: damaged
+          ? damageRatio > 0.55
+            ? "#ff5577"
+            : "#ffd166"
+          : piece.owner === "player"
+            ? "#63f6c2"
+            : "#ff8b9e",
         transparent: true,
         opacity: 0.85,
         depthWrite: false,
         toneMapped: false,
       }),
-    [piece.owner],
+    [damaged, damageRatio, piece.owner],
   );
   const started = useRef(performance.now());
   const bounds = pieceBounds(piece);
