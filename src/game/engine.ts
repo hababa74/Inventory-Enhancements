@@ -43,7 +43,13 @@ import {
 import { clamp, damp, overlaps, rayAABB, type AABB } from "./math";
 import { Sfx, setAudioListener, spatialSfx } from "./audio";
 import { hudStore, settingsStore } from "./store";
-import { recordKill, recordMatch, recordRoundWin, trackStat, type MatchSummary } from "./progression";
+import {
+  recordKill,
+  recordMatch,
+  recordRoundWin,
+  trackStat,
+  type MatchSummary,
+} from "./progression";
 
 import { actionDown, actionPressed, endFrame, input, keyPressed } from "./input";
 
@@ -132,7 +138,7 @@ export interface Arrow {
   life: number;
   stuckIn: string | null; // 'wood' if embedded in wall
   stuckPieceId: number | null; // ID of piece it's stuck in
-  stuckTimer: number;     // counts down 3s after sticking
+  stuckTimer: number; // counts down 3s after sticking
   fromPlayer: boolean;
 }
 
@@ -141,7 +147,7 @@ export interface SmokeParticle {
   x: number;
   y: number;
   z: number;
-  life: number;  // 0..0.8
+  life: number; // 0..0.8
   maxLife: number;
   scale: number;
 }
@@ -152,6 +158,15 @@ export interface Impact {
   y: number;
   z: number;
   life: number;
+}
+
+export interface BuildBreak {
+  active: boolean;
+  x: number;
+  y: number;
+  z: number;
+  life: number;
+  mat: MatId;
 }
 
 interface WeaponRuntime {
@@ -210,11 +225,35 @@ export class Engine {
 
   tracers: Tracer[] = [];
   impacts: Impact[] = [];
-  private tracerIdx = 0;
+  private impactIdx = 0;
+  buildBreaks: BuildBreak[] = [];
+  private buildBreakIdx = 0;
   private impactIdx = 0;
   rockets: Rocket[] = [];
-  arrows: Arrow[] = Array.from({ length: 8 }, () => ({ active: false, x:0,y:0,z:0,dx:0,dy:0,dz:0,speed:0,life:0,stuckIn:null,stuckPieceId:null,stuckTimer:0,fromPlayer:true }));
-  smokeParticles: SmokeParticle[] = Array.from({ length: 60 }, () => ({ active:false,x:0,y:0,z:0,life:0,maxLife:0.8,scale:0 }));
+  arrows: Arrow[] = Array.from({ length: 8 }, () => ({
+    active: false,
+    x: 0,
+    y: 0,
+    z: 0,
+    dx: 0,
+    dy: 0,
+    dz: 0,
+    speed: 0,
+    life: 0,
+    stuckIn: null,
+    stuckPieceId: null,
+    stuckTimer: 0,
+    fromPlayer: true,
+  }));
+  smokeParticles: SmokeParticle[] = Array.from({ length: 60 }, () => ({
+    active: false,
+    x: 0,
+    y: 0,
+    z: 0,
+    life: 0,
+    maxLife: 0.8,
+    scale: 0,
+  }));
   /** weapons picked before the match (max LOADOUT_SLOTS) */
   loadout: WeaponId[] = ["rifle", "shotgun", "sniper", MELEE_WEAPON];
   recoilPitch = 0;
@@ -234,7 +273,6 @@ export class Engine {
   camZ = 0;
   camActive = false;
 
-
   /** build materials, Fortnite style */
   mats: Record<MatId, number> = { wood: MAT_START, stone: MAT_START, metal: MAT_START };
   unlimitedMats = false;
@@ -253,8 +291,20 @@ export class Engine {
   // ---- kill-cam replay buffer ----------------------------------------------
   private replayBuffer: ReplayFrame[] = new Array(600).fill(null).map(() => ({
     t: 0,
-    px: 0, py: 0, pz: 0, pyaw: 0, ppitch: 0, pHp: 100, pShield: 100, pAlive: true,
-    bx: 0, by: 0, bz: 0, byaw: 0, bHp: 100, bShield: 100,
+    px: 0,
+    py: 0,
+    pz: 0,
+    pyaw: 0,
+    ppitch: 0,
+    pHp: 100,
+    pShield: 100,
+    pAlive: true,
+    bx: 0,
+    by: 0,
+    bz: 0,
+    byaw: 0,
+    bHp: 100,
+    bShield: 100,
     weapon: "rifle",
   }));
   private replayIdx = 0;
@@ -272,13 +322,20 @@ export class Engine {
   private editEnteredAt = 0;
   private editTileChanged = false;
   private drinkTimer = 0; // counts up while LMB held on mini_shield
-  drinkProgress = 0;      // 0..1 for HUD progress bar
+  drinkProgress = 0; // 0..1 for HUD progress bar
 
   private stepTimer = 0;
   private hudTimer = 0;
   private fpsAccum = 0;
   private fpsFrames = 0;
-  private killFeed: Array<{ id: number; killer: string; victim: string; weapon: string; headshot: boolean; t: number }> = [];
+  private killFeed: Array<{
+    id: number;
+    killer: string;
+    victim: string;
+    weapon: string;
+    headshot: boolean;
+    t: number;
+  }> = [];
   private damageNumbers: Array<{
     id: number;
     amount: number;
@@ -323,9 +380,19 @@ export class Engine {
   onLocalDeath: (() => void) | null = null;
   private netTimer = 0;
   private remote: {
-    x: number; y: number; z: number; yaw: number; pitch: number;
-    vy: number; speed: number; grounded: boolean; height: number;
-    hp: number; shield: number; alive: boolean; shoot: number;
+    x: number;
+    y: number;
+    z: number;
+    yaw: number;
+    pitch: number;
+    vy: number;
+    speed: number;
+    grounded: boolean;
+    height: number;
+    hp: number;
+    shield: number;
+    alive: boolean;
+    shoot: number;
   } | null = null;
 
   constructor() {
@@ -333,10 +400,33 @@ export class Engine {
       this.runtime[id] = { ammo: WEAPONS[id].mag, reserve: WEAPONS[id].reserve };
     }
     for (let i = 0; i < 24; i++)
-      this.tracers.push({ active: false, x1: 0, y1: 0, z1: 0, x2: 0, y2: 0, z2: 0, life: 0, color: 0x9ef7ff });
+      this.tracers.push({
+        active: false,
+        x1: 0,
+        y1: 0,
+        z1: 0,
+        x2: 0,
+        y2: 0,
+        z2: 0,
+        life: 0,
+        color: 0x9ef7ff,
+      });
     for (let i = 0; i < 24; i++) this.impacts.push({ active: false, x: 0, y: 0, z: 0, life: 0 });
+    for (let i = 0; i < 20; i++)
+      this.buildBreaks.push({ active: false, x: 0, y: 0, z: 0, life: 0, mat: "wood" });
     for (let i = 0; i < 8; i++)
-      this.rockets.push({ active: false, x: 0, y: 0, z: 0, dx: 0, dy: 0, dz: 0, speed: 0, life: 0, fromPlayer: true });
+      this.rockets.push({
+        active: false,
+        x: 0,
+        y: 0,
+        z: 0,
+        dx: 0,
+        dy: 0,
+        dz: 0,
+        speed: 0,
+        life: 0,
+        fromPlayer: true,
+      });
   }
 
   // ---- build subscription (React rendering) -------------------------------
@@ -355,7 +445,9 @@ export class Engine {
   // ---- match flow ---------------------------------------------------------
   /** Applies the chosen loadout; empty / partial picks are filled at random. */
   setLoadout(ids: WeaponId[]) {
-    const picked = ids.filter((id, i) => WEAPONS[id] && ids.indexOf(id) === i).slice(0, LOADOUT_SLOTS);
+    const picked = ids
+      .filter((id, i) => WEAPONS[id] && ids.indexOf(id) === i)
+      .slice(0, LOADOUT_SLOTS);
     const pool = WEAPON_ORDER.filter((id) => !picked.includes(id));
     while (picked.length < LOADOUT_SLOTS && pool.length) {
       picked.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]!);
@@ -433,7 +525,10 @@ export class Engine {
       this.bot.hp = 0;
     }
     this.stamina = MOVE.staminaMax;
-    this.unlimitedMats = this.gameMode === "boxfight" || this.gameMode === "zonewars" || settingsStore.get().unlimitedMats;
+    this.unlimitedMats =
+      this.gameMode === "boxfight" ||
+      this.gameMode === "zonewars" ||
+      settingsStore.get().unlimitedMats;
     this.mats = { wood: MAT_START, stone: MAT_START, metal: MAT_START };
     this.material = "wood";
     this.aim.reset();
@@ -455,8 +550,12 @@ export class Engine {
     this.stormCenterZ = 0;
     this.stormTimer = 0;
     this.stormDamageAccum = 0;
-    hudStore.set({ stormRadius: STORM_INITIAL_RADIUS, stormActive: this.gameMode === "zonewars", inStorm: false });
-    
+    hudStore.set({
+      stormRadius: STORM_INITIAL_RADIUS,
+      stormActive: this.gameMode === "zonewars",
+      inStorm: false,
+    });
+
     // Box Fight: pre-place walls
     if (this.gameMode === "boxfight") {
       this.buildBoxFightArena();
@@ -489,25 +588,41 @@ export class Engine {
             this.pieceList.push(p);
           }
           // Walls on edges
-          if (gx === cx) { // West wall
+          if (gx === cx) {
+            // West wall
             const p = createPiece("wall", gx, gy, gz, 3, "player", "wood");
             const key = pieceKey("wall", gx, gy, gz, 3);
-            if (!this.pieces.has(key)) { this.pieces.set(key, p); this.pieceList.push(p); }
+            if (!this.pieces.has(key)) {
+              this.pieces.set(key, p);
+              this.pieceList.push(p);
+            }
           }
-          if (gx === cx + S - 1) { // East wall
+          if (gx === cx + S - 1) {
+            // East wall
             const p = createPiece("wall", gx, gy, gz, 1, "player", "wood");
             const key = pieceKey("wall", gx, gy, gz, 1);
-            if (!this.pieces.has(key)) { this.pieces.set(key, p); this.pieceList.push(p); }
+            if (!this.pieces.has(key)) {
+              this.pieces.set(key, p);
+              this.pieceList.push(p);
+            }
           }
-          if (gz === cz) { // North wall
+          if (gz === cz) {
+            // North wall
             const p = createPiece("wall", gx, gy, gz, 0, "player", "wood");
             const key = pieceKey("wall", gx, gy, gz, 0);
-            if (!this.pieces.has(key)) { this.pieces.set(key, p); this.pieceList.push(p); }
+            if (!this.pieces.has(key)) {
+              this.pieces.set(key, p);
+              this.pieceList.push(p);
+            }
           }
-          if (gz === cz + S - 1) { // South wall
+          if (gz === cz + S - 1) {
+            // South wall
             const p = createPiece("wall", gx, gy, gz, 2, "player", "wood");
             const key = pieceKey("wall", gx, gy, gz, 2);
-            if (!this.pieces.has(key)) { this.pieces.set(key, p); this.pieceList.push(p); }
+            if (!this.pieces.has(key)) {
+              this.pieces.set(key, p);
+              this.pieceList.push(p);
+            }
           }
         }
       }
@@ -581,7 +696,14 @@ export class Engine {
         [box.maxZ - c.minZ, () => (a.z = c.minZ - MOVE.radius - 0.002)],
         [c.maxZ - box.minZ, () => (a.z = c.maxZ + MOVE.radius + 0.002)],
         [box.maxY - c.minY, () => (a.y = c.minY - a.height - 0.002)],
-        [c.maxY - box.minY, () => { a.y = c.maxY + 0.002; if (a.vy < 0) a.vy = 0; a.grounded = true; }],
+        [
+          c.maxY - box.minY,
+          () => {
+            a.y = c.maxY + 0.002;
+            if (a.vy < 0) a.vy = 0;
+            a.grounded = true;
+          },
+        ],
       ];
       pushes.sort((p, q) => p[0] - q[0]);
       pushes[0]![1]();
@@ -829,7 +951,11 @@ export class Engine {
     }
     target.hp -= dmg;
     if (fromPlayer) {
-      const dist = Math.hypot(target.x - this.player.x, target.y - this.player.y, target.z - this.player.z);
+      const dist = Math.hypot(
+        target.x - this.player.x,
+        target.y - this.player.y,
+        target.z - this.player.z,
+      );
       const now = performance.now();
       this.damageNumbers = [
         ...this.damageNumbers.slice(-6),
@@ -889,7 +1015,14 @@ export class Engine {
         // more bots left: count the frag, keep the round running
         this.killFeed = [
           ...this.killFeed.slice(-4),
-          { id: feedId++, killer: "YOU", victim: hudStore.get().opponentName, weapon, headshot: head, t: performance.now() },
+          {
+            id: feedId++,
+            killer: "YOU",
+            victim: hudStore.get().opponentName,
+            weapon,
+            headshot: head,
+            t: performance.now(),
+          },
         ];
         Sfx.kill();
         recordKill(head, weapon);
@@ -906,7 +1039,10 @@ export class Engine {
   private onKill(byPlayer: boolean, head: boolean, weapon: string) {
     const killer = byPlayer ? "YOU" : hudStore.get().opponentName;
     const victim = byPlayer ? hudStore.get().opponentName : "YOU";
-    this.killFeed = [...this.killFeed.slice(-4), { id: feedId++, killer, victim, weapon, headshot: head, t: performance.now() }];
+    this.killFeed = [
+      ...this.killFeed.slice(-4),
+      { id: feedId++, killer, victim, weapon, headshot: head, t: performance.now() },
+    ];
     if (byPlayer) {
       this.scoreYou++;
       Sfx.kill();
@@ -943,7 +1079,6 @@ export class Engine {
       this.lastSummary = recordMatch(won, undefined, this.online);
       if (won) Sfx.victory();
     }
-
   }
 
   // ---- building -----------------------------------------------------------
@@ -987,7 +1122,14 @@ export class Engine {
     return { gx: cx, gy, gz: cz, rot: dir };
   }
 
-  private ghostValid(type: BuildType, gx: number, gy: number, gz: number, rot: number, owner: Owner) {
+  private ghostValid(
+    type: BuildType,
+    gx: number,
+    gy: number,
+    gz: number,
+    rot: number,
+    owner: Owner,
+  ) {
     if (gy < 0 || gy > 6) return false;
     const key = pieceKey(type, gx, gy, gz, rot);
     const existing = this.pieces.get(key);
@@ -999,7 +1141,8 @@ export class Engine {
     const actors = [this.player, ...this.botActors()];
     for (const act of actors) {
       if (!act.alive) continue;
-      const isOwner = (owner === "player" && act === this.player) || (owner === "enemy" && act !== this.player);
+      const isOwner =
+        (owner === "player" && act === this.player) || (owner === "enemy" && act !== this.player);
       if (skipSelf && isOwner) continue;
       const box = this.actorBox(act);
       for (const c of probe.colliders) {
@@ -1041,7 +1184,6 @@ export class Engine {
     return true;
   }
 
-
   /** pickaxe harvesting */
   farmMat(mat: MatId) {
     this.mats[mat] = Math.min(MAT_CAP, this.mats[mat] + MAT_FARM);
@@ -1070,6 +1212,7 @@ export class Engine {
     this.pieces.delete(key);
     const i = this.pieceList.indexOf(p);
     if (i >= 0) this.pieceList.splice(i, 1);
+    this.spawnBuildBreak(p);
     if (this.editPiece === p) this.exitEdit(false);
     Sfx.breakBuild();
     this.bumpBuilds();
@@ -1258,7 +1401,11 @@ export class Engine {
         trackStat("edits");
 
         if (this.online) {
-          this.netSend?.({ t: "e", k: pieceKey(p.type, p.gx, p.gy, p.gz, p.rot), tiles: p.tiles.slice() });
+          this.netSend?.({
+            t: "e",
+            k: pieceKey(p.type, p.gx, p.gy, p.gz, p.rot),
+            tiles: p.tiles.slice(),
+          });
         }
       }
     }
@@ -1279,10 +1426,22 @@ export class Engine {
     this.bumpBuilds();
   }
 
-
   // ---- shooting -----------------------------------------------------------
-  private spawnTracer(x1: number, y1: number, z1: number, x2: number, y2: number, z2: number, color: number) {
-    const t = this.tracers.find((tr) => !tr.active) ?? (() => { const idx = this.tracerIdx++ % this.tracers.length; return this.tracers[idx]!; })();
+  private spawnTracer(
+    x1: number,
+    y1: number,
+    z1: number,
+    x2: number,
+    y2: number,
+    z2: number,
+    color: number,
+  ) {
+    const t =
+      this.tracers.find((tr) => !tr.active) ??
+      (() => {
+        const idx = this.tracerIdx++ % this.tracers.length;
+        return this.tracers[idx]!;
+      })();
     t.active = true;
     t.x1 = x1;
     t.y1 = y1;
@@ -1294,7 +1453,12 @@ export class Engine {
     t.color = color;
   }
   private spawnImpact(x: number, y: number, z: number) {
-    const i = this.impacts.find((im) => !im.active) ?? (() => { const idx = this.impactIdx++ % this.impacts.length; return this.impacts[idx]!; })();
+    const i =
+      this.impacts.find((im) => !im.active) ??
+      (() => {
+        const idx = this.impactIdx++ % this.impacts.length;
+        return this.impacts[idx]!;
+      })();
     i.active = true;
     i.x = x;
     i.y = y;
@@ -1302,7 +1466,29 @@ export class Engine {
     i.life = 0.35;
   }
 
-  private spawnRocket(x: number, y: number, z: number, dx: number, dy: number, dz: number, speed: number, fromPlayer: boolean) {
+  private spawnBuildBreak(p: Piece) {
+    const b = pieceBounds(p);
+    const fx =
+      this.buildBreaks.find((item) => !item.active) ??
+      this.buildBreaks[this.buildBreakIdx++ % this.buildBreaks.length]!;
+    fx.active = true;
+    fx.x = (b.minX + b.maxX) / 2;
+    fx.y = (b.minY + b.maxY) / 2;
+    fx.z = (b.minZ + b.maxZ) / 2;
+    fx.life = 0.75;
+    fx.mat = p.mat;
+  }
+
+  private spawnRocket(
+    x: number,
+    y: number,
+    z: number,
+    dx: number,
+    dy: number,
+    dz: number,
+    speed: number,
+    fromPlayer: boolean,
+  ) {
     const r = this.rockets.find((rk) => !rk.active) ?? this.rockets[0]!;
     r.active = true;
     r.x = x;
@@ -1316,11 +1502,24 @@ export class Engine {
     r.fromPlayer = fromPlayer;
   }
 
-  private spawnArrow(x: number, y: number, z: number, dx: number, dy: number, dz: number, speed: number, fromPlayer: boolean) {
-    const a = this.arrows.find(ar => !ar.active) ?? this.arrows[0]!;
+  private spawnArrow(
+    x: number,
+    y: number,
+    z: number,
+    dx: number,
+    dy: number,
+    dz: number,
+    speed: number,
+    fromPlayer: boolean,
+  ) {
+    const a = this.arrows.find((ar) => !ar.active) ?? this.arrows[0]!;
     a.active = true;
-    a.x = x; a.y = y; a.z = z;
-    a.dx = dx; a.dy = dy; a.dz = dz;
+    a.x = x;
+    a.y = y;
+    a.z = z;
+    a.dx = dx;
+    a.dy = dy;
+    a.dz = dz;
     a.speed = speed;
     a.life = 8;
     a.stuckIn = null;
@@ -1330,13 +1529,13 @@ export class Engine {
   }
 
   private spawnSmoke(x: number, y: number, z: number) {
-    const s = this.smokeParticles.find(p => !p.active) ?? this.smokeParticles[0]!;
+    const s = this.smokeParticles.find((p) => !p.active) ?? this.smokeParticles[0]!;
     s.active = true;
-    s.x = x + (Math.random()-0.5)*0.15;
-    s.y = y + (Math.random()-0.5)*0.1;
-    s.z = z + (Math.random()-0.5)*0.15;
+    s.x = x + (Math.random() - 0.5) * 0.15;
+    s.y = y + (Math.random() - 0.5) * 0.1;
+    s.z = z + (Math.random() - 0.5) * 0.15;
     s.life = 0;
-    s.maxLife = 0.6 + Math.random()*0.4;
+    s.maxLife = 0.6 + Math.random() * 0.4;
     s.scale = 0.1;
   }
 
@@ -1389,27 +1588,32 @@ export class Engine {
         continue;
       }
       ar.life -= dt;
-      if (ar.life <= 0) { ar.active = false; continue; }
+      if (ar.life <= 0) {
+        ar.active = false;
+        continue;
+      }
       // gravity arc
       ar.dy -= 9.8 * dt * 0.12;
       const len = Math.hypot(ar.dx, ar.dy, ar.dz) || 1;
-      ar.dx /= len; ar.dy /= len; ar.dz /= len;
+      ar.dx /= len;
+      ar.dy /= len;
+      ar.dz /= len;
       const step = ar.speed * dt;
       const shooter = ar.fromPlayer ? this.player : this.bot;
       const target: Actor | Actor[] = ar.fromPlayer ? this.botActors() : this.player;
       const hit = this.raycast(ar.x, ar.y, ar.z, ar.dx, ar.dy, ar.dz, step, shooter, target);
-      if (hit.hit !== 'none') {
-        if (hit.hit === 'actor' && hit.actor) {
-          const w = WEAPONS['bow'];
-          const mult = hit.zone === 'head' ? w.headMult : hit.zone === 'legs' ? w.legMult : 1;
-          this.applyDamage(hit.actor, w.damage * mult, hit.zone === 'head', ar.fromPlayer, 'bow');
+      if (hit.hit !== "none") {
+        if (hit.hit === "actor" && hit.actor) {
+          const w = WEAPONS["bow"];
+          const mult = hit.zone === "head" ? w.headMult : hit.zone === "legs" ? w.legMult : 1;
+          this.applyDamage(hit.actor, w.damage * mult, hit.zone === "head", ar.fromPlayer, "bow");
           ar.active = false;
-        } else if (hit.hit === 'piece' && hit.piece?.mat === 'wood') {
+        } else if (hit.hit === "piece" && hit.piece?.mat === "wood") {
           // stick in wood
           ar.x += ar.dx * Math.max(0, hit.dist - 0.05);
           ar.y += ar.dy * Math.max(0, hit.dist - 0.05);
           ar.z += ar.dz * Math.max(0, hit.dist - 0.05);
-          ar.stuckIn = 'wood';
+          ar.stuckIn = "wood";
           ar.stuckPieceId = hit.piece.id;
           ar.stuckTimer = 3;
         } else {
@@ -1427,7 +1631,7 @@ export class Engine {
     for (const s of this.smokeParticles) {
       if (!s.active) continue;
       s.life += dt;
-      s.scale = Math.min(1.5, s.life / s.maxLife * 1.5);
+      s.scale = Math.min(1.5, (s.life / s.maxLife) * 1.5);
       s.y += dt * 0.4;
       if (s.life >= s.maxLife) s.active = false;
     }
@@ -1469,7 +1673,13 @@ export class Engine {
     }
   }
 
-  fireWeapon(shooter: Actor, target: Actor | Actor[], weaponId: WeaponId, isPlayer: boolean, accuracy = 1) {
+  fireWeapon(
+    shooter: Actor,
+    target: Actor | Actor[],
+    weaponId: WeaponId,
+    isPlayer: boolean,
+    accuracy = 1,
+  ) {
     const w = WEAPONS[weaponId];
     // In third person the crosshair sits on the camera ray, so the player's
     // shots must start at the camera to land exactly where the crosshair is.
@@ -1483,19 +1693,29 @@ export class Engine {
     const baseZ = -Math.cos(shooter.yaw) * cp;
 
     if (w.projectileSpeed) {
-      if (weaponId === 'bow' || weaponId === 'crossbow') {
+      if (weaponId === "bow" || weaponId === "crossbow") {
         this.spawnArrow(ox, oy - 0.1, oz, baseX, baseY, baseZ, w.projectileSpeed, isPlayer);
-      } else if (weaponId === 'rocket') {
+      } else if (weaponId === "rocket") {
         this.spawnRocket(ox, oy - 0.1, oz, baseX, baseY, baseZ, w.projectileSpeed, isPlayer);
       }
       shooter.shootAnim = 1;
       if (isPlayer) {
-        if (this.online) this.netSend?.({ t: "shot", x: ox, y: oy, z: oz, dx: baseX, dy: baseY, dz: baseZ, w: weaponId });
+        if (this.online)
+          this.netSend?.({
+            t: "shot",
+            x: ox,
+            y: oy,
+            z: oz,
+            dx: baseX,
+            dy: baseY,
+            dz: baseZ,
+            w: weaponId,
+          });
         this.recoilPitch += w.recoil;
         this.shake = Math.min(1, this.shake + w.recoil * 3);
       }
       Sfx.shoot(weaponId);
-      if (weaponId === 'bow' || weaponId === 'crossbow' || weaponId === 'rocket') {
+      if (weaponId === "bow" || weaponId === "crossbow" || weaponId === "rocket") {
         return { anyHit: false, anyHead: false };
       }
       // For high-speed sniper rifles, simulate ballistics with slight drop
@@ -1507,16 +1727,16 @@ export class Engine {
 
     // 10-pellet deterministic Fortnite shotgun pattern (center + inner diamond + outer circle)
     const SHOTGUN_PATTERN: Array<[number, number]> = [
-      [0, 0],           // 0: dead center
-      [-0.45, 0],       // 1: inner left
-      [0.45, 0],        // 2: inner right
-      [0, 0.45],        // 3: inner top
-      [0, -0.45],       // 4: inner bottom
-      [-0.75, 0.75],    // 5: outer top-left
-      [0.75, 0.75],     // 6: outer top-right
-      [-0.75, -0.75],   // 7: outer bottom-left
-      [0.75, -0.75],    // 8: outer bottom-right
-      [0, 0.9],         // 9: outer crown
+      [0, 0], // 0: dead center
+      [-0.45, 0], // 1: inner left
+      [0.45, 0], // 2: inner right
+      [0, 0.45], // 3: inner top
+      [0, -0.45], // 4: inner bottom
+      [-0.75, 0.75], // 5: outer top-left
+      [0.75, 0.75], // 6: outer top-right
+      [-0.75, -0.75], // 7: outer bottom-left
+      [0.75, -0.75], // 8: outer bottom-right
+      [0, 0.9], // 9: outer crown
     ];
 
     if (isPlayer) this.aim.countShot();
@@ -1558,13 +1778,24 @@ export class Engine {
       const endX = ox + dx * hit.dist;
       const endY = oy + dy * hit.dist;
       const endZ = oz + dz * hit.dist;
-      if (i === 0 || w.pellets <= 3) this.spawnTracer(ox, oy - 0.15, oz, endX, endY, endZ, isPlayer ? 0x9ef7ff : 0xff8080);
+      if (i === 0 || w.pellets <= 3)
+        this.spawnTracer(ox, oy - 0.15, oz, endX, endY, endZ, isPlayer ? 0x9ef7ff : 0xff8080);
 
       if (hit.hit === "actor") {
-        const falloff = hit.dist > w.falloffStart ? clamp(1 - (hit.dist - w.falloffStart) / (w.range - w.falloffStart) * 0.6, 0.4, 1) : 1;
+        const falloff =
+          hit.dist > w.falloffStart
+            ? clamp(1 - ((hit.dist - w.falloffStart) / (w.range - w.falloffStart)) * 0.6, 0.4, 1)
+            : 1;
         const mult = hit.zone === "head" ? w.headMult : hit.zone === "legs" ? w.legMult : 1;
         const victim = hit.actor ?? (Array.isArray(target) ? target[0] : target);
-        if (victim) this.applyDamage(victim, w.damage * mult * falloff, hit.zone === "head", isPlayer, w.name);
+        if (victim)
+          this.applyDamage(
+            victim,
+            w.damage * mult * falloff,
+            hit.zone === "head",
+            isPlayer,
+            w.name,
+          );
         if (w.melee) Sfx.pickaxeFlesh();
         anyHit = true;
         if (hit.zone === "head") anyHead = true;
@@ -1586,7 +1817,16 @@ export class Engine {
 
     shooter.shootAnim = 1;
     if (isPlayer && this.online) {
-      this.netSend?.({ t: "shot", x: ox, y: oy, z: oz, dx: baseX, dy: baseY, dz: baseZ, w: weaponId });
+      this.netSend?.({
+        t: "shot",
+        x: ox,
+        y: oy,
+        z: oz,
+        dx: baseX,
+        dy: baseY,
+        dz: baseZ,
+        w: weaponId,
+      });
     }
     if (isPlayer) {
       this.recoilPitch += w.recoil;
@@ -1663,13 +1903,20 @@ export class Engine {
       const opponent = this.bot; // use bot as opponent (works for both online and offline)
       const frame = this.replayBuffer[this.replayIdx % 600]!;
       frame.t = performance.now();
-      frame.px = this.player.x; frame.py = this.player.y; frame.pz = this.player.z;
-      frame.pyaw = this.player.yaw; frame.ppitch = this.player.pitch;
-      frame.pHp = this.player.hp; frame.pShield = this.player.shield;
+      frame.px = this.player.x;
+      frame.py = this.player.y;
+      frame.pz = this.player.z;
+      frame.pyaw = this.player.yaw;
+      frame.ppitch = this.player.pitch;
+      frame.pHp = this.player.hp;
+      frame.pShield = this.player.shield;
       frame.pAlive = this.player.alive;
-      frame.bx = opponent.x; frame.by = opponent.y; frame.bz = opponent.z;
+      frame.bx = opponent.x;
+      frame.by = opponent.y;
+      frame.bz = opponent.z;
       frame.byaw = opponent.yaw;
-      frame.bHp = opponent.hp; frame.bShield = opponent.shield;
+      frame.bHp = opponent.hp;
+      frame.bShield = opponent.shield;
       frame.weapon = this.weapon;
       this.replayIdx = (this.replayIdx + 1) % 600;
       this.replayCount = Math.min(600, this.replayCount + 1);
@@ -1683,8 +1930,9 @@ export class Engine {
       // Shrink the storm
       this.stormTimer += dt;
       const shrinkFraction = Math.min(1, this.stormTimer / STORM_SHRINK_DURATION);
-      this.stormRadius = STORM_INITIAL_RADIUS - (STORM_INITIAL_RADIUS - STORM_FINAL_RADIUS) * shrinkFraction;
-      
+      this.stormRadius =
+        STORM_INITIAL_RADIUS - (STORM_INITIAL_RADIUS - STORM_FINAL_RADIUS) * shrinkFraction;
+
       // Apply damage to actors outside the storm
       const actors = [this.player, ...this.botActors()];
       let playerInStorm = false;
@@ -1715,7 +1963,11 @@ export class Engine {
     }
 
     // ---- look (per-mode sensitivity multipliers)
-    const modeMult = this.scoped ? s.adsSensitivity : this.buildMode || this.editMode ? s.buildSensitivity : 1;
+    const modeMult = this.scoped
+      ? s.adsSensitivity
+      : this.buildMode || this.editMode
+        ? s.buildSensitivity
+        : 1;
     const sens = 0.0021 * s.sensitivity * modeMult;
     const invert = s.invertY ? -1 : 1;
     this.player.yaw -= input.mouseDX * sens;
@@ -1753,7 +2005,6 @@ export class Engine {
     }
     this.player.pitch = clamp(this.player.pitch, -Math.PI / 2 + 0.02, Math.PI / 2 - 0.02);
 
-
     this.recoilPitch = damp(this.recoilPitch, 0, 9, dt);
     this.recoilYaw = damp(this.recoilYaw, 0, 9, dt);
     this.shake = damp(this.shake, 0, 7, dt);
@@ -1789,6 +2040,11 @@ export class Engine {
       im.life -= dt;
       if (im.life <= 0) im.active = false;
     }
+    for (const fx of this.buildBreaks) {
+      if (!fx.active) continue;
+      fx.life -= dt;
+      if (fx.life <= 0) fx.active = false;
+    }
 
     this.player.shootAnim = damp(this.player.shootAnim, 0, 14, dt);
     for (const b of this.botActors()) b.shootAnim = damp(b.shootAnim, 0, 14, dt);
@@ -1812,10 +2068,19 @@ export class Engine {
         const p = this.player;
         this.netSend?.({
           t: "s",
-          x: p.x, y: p.y, z: p.z,
-          yw: p.yaw, pt: p.pitch, vy: p.vy,
-          sp: p.speed, gr: p.grounded, hh: p.height,
-          hp: p.hp, sh: p.shield, al: p.alive, an: p.shootAnim,
+          x: p.x,
+          y: p.y,
+          z: p.z,
+          yw: p.yaw,
+          pt: p.pitch,
+          vy: p.vy,
+          sp: p.speed,
+          gr: p.grounded,
+          hh: p.height,
+          hp: p.hp,
+          sh: p.shield,
+          al: p.alive,
+          an: p.shootAnim,
         });
       }
     }
@@ -1862,7 +2127,6 @@ export class Engine {
     }
 
     if (actionPressed("cycleMat")) this.cycleMaterial(1);
-
 
     if (!set.disablePreEdit) {
       if (actionPressed("edit")) {
@@ -1923,7 +2187,6 @@ export class Engine {
       }
     }
 
-
     // ---- movement
     const wantSprint =
       actionDown("sprint") && this.stamina > 1 && !this.buildMode && !this.editMode;
@@ -1977,7 +2240,14 @@ export class Engine {
     if (this.slideTime > 0) {
       this.slideTime -= dt;
       if (!a.grounded || hSpeed < 3.2 || !crouch) this.slideTime = 0;
-    } else if (crouch && a.grounded && hSpeed > 6 && this.slideCd <= 0 && !this.buildMode && !this.editMode) {
+    } else if (
+      crouch &&
+      a.grounded &&
+      hSpeed > 6 &&
+      this.slideCd <= 0 &&
+      !this.buildMode &&
+      !this.editMode
+    ) {
       this.slideTime = 0.55;
       this.slideCd = 1.1;
       const boost = Math.min(MOVE.sprintSpeed * 1.45, hSpeed * 1.28);
@@ -2001,7 +2271,11 @@ export class Engine {
           : MOVE.walkSpeed;
 
     if (a.grounded) {
-      const friction = sliding ? 1.6 : ilen > 0.01 ? MOVE.groundFriction * 0.5 : MOVE.groundFriction;
+      const friction = sliding
+        ? 1.6
+        : ilen > 0.01
+          ? MOVE.groundFriction * 0.5
+          : MOVE.groundFriction;
       a.vx = damp(a.vx, 0, friction, dt);
       a.vz = damp(a.vz, 0, friction, dt);
       const accel = sliding ? MOVE.groundAccel * 0.18 : MOVE.groundAccel;
@@ -2029,7 +2303,8 @@ export class Engine {
     }
 
     // jump w/ coyote + buffer (+ hold-to-bhop)
-    if (actionPressed("jump") || (actionDown("jump") && a.grounded)) this.jumpBuffer = MOVE.jumpBuffer;
+    if (actionPressed("jump") || (actionDown("jump") && a.grounded))
+      this.jumpBuffer = MOVE.jumpBuffer;
     this.jumpBuffer -= dt;
     if (a.grounded) this.coyote = MOVE.coyoteTime;
     else this.coyote -= dt;
@@ -2138,7 +2413,6 @@ export class Engine {
     }
     this.editAimTile = -1;
 
-
     // ---- build mode interactions
     this.buildTimer -= dt;
     if (this.buildMode) {
@@ -2198,12 +2472,12 @@ export class Engine {
     this.fireTimer -= dt;
 
     // ---- Mini Shield: hold LMB 1.5s to drink
-    if (this.weapon === 'mini_shield' && live) {
+    if (this.weapon === "mini_shield" && live) {
       if (input.fireDown) {
         this.drinkTimer += dt;
         this.drinkProgress = Math.min(1, this.drinkTimer / 1.5);
         if (this.drinkTimer >= 1.5) {
-          const rt = this.runtime['mini_shield'];
+          const rt = this.runtime["mini_shield"];
           if (rt.ammo > 0) {
             rt.ammo--;
             const gain = Math.min(25, 50 - a.shield);
@@ -2224,8 +2498,15 @@ export class Engine {
       this.drinkProgress = 0;
     }
 
-    const wantsFire = this.weapon !== 'mini_shield' && (w.auto ? input.fireDown : input.firePressed);
-    if (wantsFire && this.fireTimer <= 0 && this.switchTimer <= 0 && this.reloadTimer <= 0 && live) {
+    const wantsFire =
+      this.weapon !== "mini_shield" && (w.auto ? input.fireDown : input.firePressed);
+    if (
+      wantsFire &&
+      this.fireTimer <= 0 &&
+      this.switchTimer <= 0 &&
+      this.reloadTimer <= 0 &&
+      live
+    ) {
       const rt = this.runtime[this.weapon];
       if (w.melee) {
         this.fireTimer = 60 / w.rpm;
@@ -2347,7 +2628,13 @@ export class Engine {
     b.glint = sniping ? Math.min(1, b.glint + dt * 3) : Math.max(0, b.glint - dt * 1.6);
     if (hasLos && timers.shoot <= 0) {
       const weapon: WeaponId =
-        dist < 9 ? (Math.random() < 0.5 ? "shotgun" : "tacshotgun") : dist > 26 ? "sniper" : "rifle";
+        dist < 9
+          ? Math.random() < 0.5
+            ? "shotgun"
+            : "tacshotgun"
+          : dist > 26
+            ? "sniper"
+            : "rifle";
 
       const w = WEAPONS[weapon];
       timers.shoot =
@@ -2391,10 +2678,18 @@ export class Engine {
     switch (m.t) {
       case "s": {
         this.remote = {
-          x: n(m["x"]), y: n(m["y"]), z: n(m["z"]),
-          yaw: n(m["yw"]), pitch: n(m["pt"]), vy: n(m["vy"]),
-          speed: n(m["sp"]), grounded: Boolean(m["gr"]), height: n(m["hh"], MOVE.height),
-          hp: n(m["hp"], PLAYER_MAX_HP), shield: n(m["sh"]), alive: m["al"] !== false,
+          x: n(m["x"]),
+          y: n(m["y"]),
+          z: n(m["z"]),
+          yaw: n(m["yw"]),
+          pitch: n(m["pt"]),
+          vy: n(m["vy"]),
+          speed: n(m["sp"]),
+          grounded: Boolean(m["gr"]),
+          height: n(m["hh"], MOVE.height),
+          hp: n(m["hp"], PLAYER_MAX_HP),
+          shield: n(m["sh"]),
+          alive: m["al"] !== false,
           shoot: n(m["an"]),
         };
         const b = this.bot;
@@ -2428,7 +2723,15 @@ export class Engine {
           break;
         }
         const hit = this.raycast(ox, oy, oz, dx, dy, dz, w.range, this.bot, null);
-        this.spawnTracer(ox, oy - 0.15, oz, ox + dx * hit.dist, oy + dy * hit.dist, oz + dz * hit.dist, 0xff8080);
+        this.spawnTracer(
+          ox,
+          oy - 0.15,
+          oz,
+          ox + dx * hit.dist,
+          oy + dy * hit.dist,
+          oz + dz * hit.dist,
+          0xff8080,
+        );
         this.bot.shootAnim = 1;
         Sfx.shoot((m["w"] as WeaponId) ?? "rifle");
         break;
@@ -2531,7 +2834,8 @@ export class Engine {
       scoreEnemy: this.scoreEnemy,
       fps,
       killFeed: feed.length !== hudStore.get().killFeed.length ? feed : hudStore.get().killFeed,
-      damageNumbers: dmg.length !== hudStore.get().damageNumbers.length ? dmg : hudStore.get().damageNumbers,
+      damageNumbers:
+        dmg.length !== hudStore.get().damageNumbers.length ? dmg : hudStore.get().damageNumbers,
     });
     if (feed.length !== this.killFeed.length) this.killFeed = feed;
     if (dmg.length !== this.damageNumbers.length) this.damageNumbers = dmg;

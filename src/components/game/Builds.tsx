@@ -24,6 +24,7 @@ export function Builds({ shadows }: { shadows: boolean }) {
   return (
     <group>
       <PieceHealthBars />
+      <BuildBreakEffects />
       {engine.pieceList.map((p) => {
         const isEditing = engine.editMode && engine.editPiece?.id === p.id;
         return (
@@ -47,6 +48,77 @@ export function Builds({ shadows }: { shadows: boolean }) {
           </group>
         );
       })}
+    </group>
+  );
+}
+
+/** Pooled debris burst emitted after a piece is destroyed. */
+function BuildBreakEffects() {
+  const particles = useRef<THREE.Mesh[]>([]);
+  const materials = useMemo(
+    () => ({
+      wood: new THREE.MeshBasicMaterial({
+        color: "#c88b4c",
+        transparent: true,
+        opacity: 0.9,
+        toneMapped: false,
+      }),
+      stone: new THREE.MeshBasicMaterial({
+        color: "#b9c4ce",
+        transparent: true,
+        opacity: 0.9,
+        toneMapped: false,
+      }),
+      metal: new THREE.MeshBasicMaterial({
+        color: "#b9edff",
+        transparent: true,
+        opacity: 0.9,
+        toneMapped: false,
+      }),
+    }),
+    [],
+  );
+  useEffect(
+    () => () => Object.values(materials).forEach((material) => material.dispose()),
+    [materials],
+  );
+  useFrame(() => {
+    engine.buildBreaks.forEach((fx, burstIndex) => {
+      for (let particleIndex = 0; particleIndex < 8; particleIndex++) {
+        const mesh = particles.current[burstIndex * 8 + particleIndex];
+        if (!mesh) continue;
+        mesh.visible = fx.active;
+        if (!fx.active) continue;
+        const progress = 1 - fx.life / 0.75;
+        const seed = burstIndex * 17 + particleIndex * 31;
+        const angle = ((seed * 0.73) % 6.28) - 3.14;
+        const speed = 0.8 + (seed % 7) * 0.12;
+        const height = 0.6 + (seed % 5) * 0.18;
+        mesh.position.set(
+          fx.x + Math.cos(angle) * speed * progress,
+          fx.y + height * progress - 1.2 * progress * progress,
+          fx.z + Math.sin(angle) * speed * progress,
+        );
+        mesh.rotation.set(progress * seed, progress * seed * 0.7, progress * seed * 0.4);
+        mesh.scale.setScalar(Math.max(0.03, 0.14 * (1 - progress)));
+        mesh.material = materials[fx.mat];
+      }
+    });
+  });
+  return (
+    <group>
+      {Array.from({ length: 20 * 8 }).map((_, index) => (
+        <mesh
+          key={index}
+          visible={false}
+          material={materials.wood}
+          ref={(mesh) => {
+            if (mesh) particles.current[index] = mesh;
+          }}
+        >
+          <boxGeometry args={[1, 1, 1]} />
+        </mesh>
+      ))}
     </group>
   );
 }
