@@ -1,0 +1,2 @@
+REVOKE ALL ON FUNCTION public.mm_find_or_queue(TEXT, TEXT, TEXT, INT, TEXT, INT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.mm_find_or_queue(TEXT, TEXT, TEXT, INT, TEXT, INT) TO service_role;
