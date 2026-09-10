@@ -325,8 +325,9 @@ function PieceHealthBars() {
 }
 
 /**
- * Fortnite-style build surfaces: wood planks, quarried stone blocks and
- * riveted sheet metal, all drawn procedurally on a canvas (no asset loads).
+ * Hand-built arena surfaces: woven branch walls, quarried stone blocks and
+ * riveted sheet metal. The wood deliberately reads as a crafted survival
+ * structure rather than a flat rectangular placeholder.
  */
 function makeBuildMaterials() {
   const geo = new THREE.BoxGeometry(1, 1, 1);
@@ -350,32 +351,63 @@ function makeBuildMaterials() {
 
   const wood = tex((c, s) => {
     const r = rnd(7);
-    c.fillStyle = "#b07b40";
+    c.fillStyle = "#6c482b";
     c.fillRect(0, 0, s, s);
-    const planks = 5;
-    const h = s / planks;
-    for (let i = 0; i < planks; i++) {
-      c.fillStyle = `rgb(${168 + r() * 30 | 0},${118 + r() * 24 | 0},${60 + r() * 20 | 0})`;
-      c.fillRect(0, i * h + 1, s, h - 2);
-      // grain lines
-      for (let g = 0; g < 14; g++) {
-        c.strokeStyle = `rgba(90,58,26,${0.12 + r() * 0.2})`;
-        c.lineWidth = 1;
+    // dark backing so gaps between branches read as depth, not as a flat tile
+    c.fillStyle = "rgba(22,18,15,0.42)";
+    c.fillRect(10, 10, s - 20, s - 20);
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    // irregular woven branches
+    for (let row = 0; row < 8; row++) {
+      const y = 18 + row * 31 + (r() - 0.5) * 6;
+      const sway = (r() - 0.5) * 10;
+      c.strokeStyle = `rgb(${112 + (r() * 45) | 0},${74 + (r() * 34) | 0},${38 + (r() * 20) | 0})`;
+      c.lineWidth = 10 + r() * 5;
+      c.beginPath();
+      c.moveTo(12, y);
+      c.bezierCurveTo(s * 0.25, y + sway, s * 0.58, y - sway, s - 12, y + (r() - 0.5) * 8);
+      c.stroke();
+      c.strokeStyle = "rgba(231,177,92,0.32)";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(16, y - 2);
+      c.bezierCurveTo(s * 0.3, y + sway - 2, s * 0.6, y - sway - 2, s - 16, y - 2);
+      c.stroke();
+    }
+    // vertical stakes and end caps
+    c.strokeStyle = "#4c331f";
+    c.lineWidth = 13;
+    for (const x of [14, s - 14]) {
+      c.beginPath();
+      c.moveTo(x, 10);
+      c.lineTo(x + (r() - 0.5) * 5, s - 10);
+      c.stroke();
+      c.strokeStyle = "rgba(224,170,88,0.42)";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(x - 2, 14);
+      c.lineTo(x - 2, s - 14);
+      c.stroke();
+      c.strokeStyle = "#4c331f";
+      c.lineWidth = 13;
+    }
+    // rope bindings at alternating joints
+    for (const [x, y] of [[14, 26], [s - 14, 86], [s * 0.52, 116], [14, 202], [s - 14, 226]]) {
+      c.strokeStyle = "#d4a86e";
+      c.lineWidth = 4;
+      for (let band = -1; band <= 1; band++) {
         c.beginPath();
-        const y = i * h + 3 + r() * (h - 6);
-        c.moveTo(0, y);
-        c.bezierCurveTo(s * 0.3, y + (r() - 0.5) * 6, s * 0.7, y + (r() - 0.5) * 6, s, y);
+        c.arc(x, y + band * 5, 9, Math.PI * 0.25, Math.PI * 1.75);
         c.stroke();
       }
-      c.fillStyle = "rgba(60,38,16,0.55)";
-      c.fillRect(0, i * h + h - 2, s, 2);
     }
-    // nails
-    c.fillStyle = "rgba(50,40,30,0.6)";
-    for (let i = 0; i < planks; i++) {
-      for (const x of [10, s - 14]) {
+    // subtle nails on the stakes
+    c.fillStyle = "rgba(219,196,146,0.7)";
+    for (const x of [14, s - 14]) {
+      for (const y of [18, s * 0.5, s - 18]) {
         c.beginPath();
-        c.arc(x, i * h + h / 2, 2.6, 0, Math.PI * 2);
+        c.arc(x - 2, y, 2.3, 0, Math.PI * 2);
         c.fill();
       }
     }
